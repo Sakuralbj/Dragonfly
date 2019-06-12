@@ -113,6 +113,29 @@ func ExtractHost(hostAndPort string) string {
 	return fields[0]
 }
 
+// GetIPAndPortFromNode return ip and port by parsing the node value.
+// It will return defaultPort as the value of port
+// when the node is a string without port or with an illegal port.
+func GetIPAndPortFromNode(node string, defaultPort int) (string, int) {
+	if IsEmptyStr(node) {
+		return "", defaultPort
+	}
+
+	nodeFields := strings.Split(node, ":")
+	switch len(nodeFields) {
+	case 1:
+		return nodeFields[0], defaultPort
+	case 2:
+		port, err := strconv.Atoi(nodeFields[1])
+		if err != nil {
+			return nodeFields[0], defaultPort
+		}
+		return nodeFields[0], port
+	default:
+		return "", defaultPort
+	}
+}
+
 // FilterURLParam filters request queries in URL.
 // Eg:
 // If you pass parameters as follows:
@@ -138,6 +161,30 @@ func FilterURLParam(url string, filters []string) string {
 		return rawUrls[0] + "?" + strings.Join(params, separator)
 	}
 	return rawUrls[0]
+}
+
+// ConvertHeaders converts headers from array type to map type for http request.
+func ConvertHeaders(headers []string) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+	hm := make(map[string]string)
+	for _, header := range headers {
+		kv := strings.SplitN(header, ":", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		k, v := strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1])
+		if v == "" {
+			continue
+		}
+		if _, in := hm[k]; in {
+			hm[k] = hm[k] + "," + v
+		} else {
+			hm[k] = v
+		}
+	}
+	return hm
 }
 
 // IsValidURL returns whether the string url is a valid HTTP URL.
@@ -168,6 +215,25 @@ func IsValidIP(ip string) bool {
 	}
 
 	return result
+}
+
+// GetAllIPs returns all non-loopback addresses.
+func GetAllIPs() (ipList []string, err error) {
+	// get all system's unicast interface addresses.
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, err
+	}
+
+	// filter all loopback addresses.
+	for _, v := range addrs {
+		if ipNet, ok := v.(*net.IPNet); ok {
+			if !ipNet.IP.IsLoopback() {
+				ipList = append(ipList, ipNet.IP.String())
+			}
+		}
+	}
+	return
 }
 
 // slice2Map translate a slice to a map with

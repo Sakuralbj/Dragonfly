@@ -26,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/dragonflyoss/Dragonfly/dfdaemon/constant"
+	"github.com/dragonflyoss/Dragonfly/dfdaemon/downloader"
 	"github.com/dragonflyoss/Dragonfly/dfdaemon/exception"
 	"github.com/dragonflyoss/Dragonfly/dfdaemon/global"
 )
@@ -42,16 +43,21 @@ type DFGetter struct {
 	callSystem string
 	// the notbs param of dfget
 	notbs bool
+
+	supernodes []string
 }
 
+var _ downloader.Interface = &DFGetter{}
+
 // NewDFGetter returns the default DFGetter.
-func NewDFGetter(dstDir, callSystem string, notbs bool, rateLimit, urlFilter string) *DFGetter {
+func NewDFGetter(dstDir, callSystem string, notbs bool, rateLimit, urlFilter string, supernodes []string) *DFGetter {
 	return &DFGetter{
 		dstDir:     dstDir,
 		callSystem: callSystem,
 		notbs:      notbs,
 		rateLimit:  rateLimit,
 		urlFilter:  urlFilter,
+		supernodes: supernodes,
 	}
 }
 
@@ -92,6 +98,9 @@ func (dfGetter *DFGetter) parseCommand(url string, header map[string][]string, n
 	if strings.TrimSpace(dfGetter.rateLimit) != "" {
 		args = append(append(args, "-s"), dfGetter.rateLimit)
 		args = append(append(args, "--totallimit"), dfGetter.rateLimit)
+	}
+	if dfGetter.supernodes != nil && len(dfGetter.supernodes) > 0 {
+		args = append(append(args, "--node"), strings.Join(dfGetter.supernodes, ","))
 	}
 
 	if header != nil {

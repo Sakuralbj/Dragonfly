@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/dragonflyoss/Dragonfly/common/util"
 	"github.com/dragonflyoss/Dragonfly/dfget/config"
-	"github.com/dragonflyoss/Dragonfly/dfget/util"
 )
 
 // UploaderAPI defines the communication methods between dfget and uploader.
@@ -46,6 +46,8 @@ type UploaderAPI interface {
 type uploaderAPI struct {
 	timeout time.Duration
 }
+
+var _ UploaderAPI = &uploaderAPI{}
 
 // NewUploaderAPI returns a new UploaderAPI.
 func NewUploaderAPI(timeout time.Duration) UploaderAPI {

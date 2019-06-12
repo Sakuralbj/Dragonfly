@@ -20,7 +20,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path"
@@ -29,14 +28,13 @@ import (
 	"syscall"
 	"time"
 
+	errType "github.com/dragonflyoss/Dragonfly/common/errors"
 	cutil "github.com/dragonflyoss/Dragonfly/common/util"
-	errType "github.com/dragonflyoss/Dragonfly/dfget/errors"
 	"github.com/dragonflyoss/Dragonfly/dfget/util"
 
 	"github.com/pkg/errors"
 	"gopkg.in/gcfg.v1"
 	"gopkg.in/warnings.v0"
-	"gopkg.in/yaml.v2"
 )
 
 // ----------------------------------------------------------------------------
@@ -92,7 +90,7 @@ func (p *Properties) Load(path string) error {
 	case "ini":
 		return p.loadFromIni(path)
 	case "yaml":
-		return p.loadFromYaml(path)
+		return cutil.LoadYaml(path, p)
 	}
 	return fmt.Errorf("extension of %s is not in 'conf/ini/yaml/yml'", path)
 }
@@ -112,18 +110,6 @@ func (p *Properties) loadFromIni(path string) error {
 		}
 	}
 	p.Nodes = strings.Split(oldConfig.Node.Address, ",")
-	return nil
-}
-
-func (p *Properties) loadFromYaml(path string) error {
-	yamlFile, err := ioutil.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("read yaml config from %s error: %v", path, err)
-	}
-	err = yaml.Unmarshal(yamlFile, p)
-	if err != nil {
-		return fmt.Errorf("unmarshal yaml error:%v", err)
-	}
 	return nil
 }
 
@@ -227,7 +213,10 @@ type Config struct {
 	WorkHome string `json:"workHome"`
 
 	// Config file paths,
-	// default:["/etc/dragonfly.yaml","/etc/dragonfly.conf"].
+	// default:["/etc/dragonfly/dfget.yml","/etc/dragonfly.conf"].
+	//
+	// NOTE: It is recommended to use `/etc/dragonfly/dfget.yml` as default,
+	// and the `/etc/dragonfly.conf` is just to ensure compatibility with previous versions.
 	ConfigFiles []string `json:"configFile"`
 
 	// RV stores the variables that are initialized and used at downloading task executing.
@@ -326,7 +315,7 @@ type RuntimeVariable struct {
 	SystemDataDir string
 
 	// DataDir specify a directory to store temporary files.
-	// For now, the value of `DataDir` always euqals `SystemDataDir`,
+	// For now, the value of `DataDir` always equals `SystemDataDir`,
 	// and there is no difference between them.
 	// TODO: If there is insufficient disk space, we should set it to the `TargetDir`.
 	DataDir string

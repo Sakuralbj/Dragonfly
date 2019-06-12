@@ -24,10 +24,10 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
+	"github.com/dragonflyoss/Dragonfly/common/constants"
+	"github.com/dragonflyoss/Dragonfly/common/errors"
 	cutil "github.com/dragonflyoss/Dragonfly/common/util"
 	"github.com/dragonflyoss/Dragonfly/dfget/config"
 	"github.com/dragonflyoss/Dragonfly/dfget/core/api"
@@ -36,7 +36,6 @@ import (
 	p2pDown "github.com/dragonflyoss/Dragonfly/dfget/core/downloader/p2p_downloader"
 	"github.com/dragonflyoss/Dragonfly/dfget/core/regist"
 	"github.com/dragonflyoss/Dragonfly/dfget/core/uploader"
-	"github.com/dragonflyoss/Dragonfly/dfget/errors"
 	"github.com/dragonflyoss/Dragonfly/dfget/util"
 	"github.com/dragonflyoss/Dragonfly/version"
 
@@ -48,7 +47,7 @@ func init() {
 }
 
 // Start function creates a new task and starts it to download file.
-func Start(cfg *config.Config) *errors.DFGetError {
+func Start(cfg *config.Config) *errors.DfError {
 	var (
 		supernodeAPI = api.NewSupernodeAPI()
 		register     = regist.NewSupernodeRegister(cfg, supernodeAPI)
@@ -114,8 +113,7 @@ func prepare(cfg *config.Config) (err error) {
 }
 
 func launchPeerServer(cfg *config.Config) (err error) {
-	var port = 0
-	port, err = uploader.StartPeerServerProcess(cfg)
+	port, err := uploader.StartPeerServerProcess(cfg)
 	if err == nil && port > 0 {
 		cfg.RV.PeerPort = port
 	}
@@ -149,7 +147,7 @@ func registerToSuperNode(cfg *config.Config, register regist.SupernodeRegister) 
 
 	result, e := register.Register(cfg.RV.PeerPort)
 	if e != nil {
-		if e.Code == config.TaskCodeNeedAuth {
+		if e.Code == constants.CodeNeedAuth {
 			return nil, e
 		}
 		cfg.BackSourceReason = config.BackSourceReasonRegisterFail
@@ -250,15 +248,11 @@ func adjustSupernodeList(nodes []string) []string {
 
 func checkConnectSupernode(nodes []string) (localIP string) {
 	var (
-		e    error
-		port = 8002
+		e error
 	)
 	for _, n := range nodes {
-		nodeFields := strings.Split(n, ":")
-		if len(nodeFields) == 2 {
-			port, _ = strconv.Atoi(nodeFields[1])
-		}
-		if localIP, e = util.CheckConnect(nodeFields[0], port, 1000); e == nil {
+		ip, port := cutil.GetIPAndPortFromNode(n, config.DefaultSupernodePort)
+		if localIP, e = cutil.CheckConnect(ip, port, 1000); e == nil {
 			return localIP
 		}
 		logrus.Errorf("Connect to node:%s error: %v", n, e)

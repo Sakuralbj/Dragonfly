@@ -21,8 +21,12 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"syscall"
+
+	"gopkg.in/yaml.v2"
 )
 
 // BufferSize define the buffer size when reading and writing file
@@ -205,4 +209,22 @@ func Md5Sum(name string) string {
 	}
 
 	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+// GetSys returns the underlying data source of the os.FileInfo.
+func GetSys(info os.FileInfo) (*syscall.Stat_t, bool) {
+	sys, ok := info.Sys().(*syscall.Stat_t)
+	return sys, ok
+}
+
+// LoadYaml load yaml config file.
+func LoadYaml(path string, out interface{}) error {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err = yaml.Unmarshal(content, out); err != nil {
+		return fmt.Errorf("path:%s err:%s", path, err)
+	}
+	return nil
 }

@@ -21,8 +21,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/dragonflyoss/Dragonfly/common/util"
 	"github.com/dragonflyoss/Dragonfly/dfget/config"
-	"github.com/dragonflyoss/Dragonfly/dfget/util"
 	"github.com/dragonflyoss/Dragonfly/version"
 )
 
@@ -44,6 +44,8 @@ type DownloadAPI interface {
 // downloadAPI is an implementation of interface DownloadAPI.
 type downloadAPI struct {
 }
+
+var _ DownloadAPI = &downloadAPI{}
 
 // NewDownloadAPI returns a new DownloadAPI.
 func NewDownloadAPI() DownloadAPI {

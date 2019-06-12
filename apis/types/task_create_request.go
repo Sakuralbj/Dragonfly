@@ -52,9 +52,9 @@ type TaskCreateRequest struct {
 	Headers map[string]string `json:"headers,omitempty"`
 
 	// special attribute of remote source file. This field is used with taskURL to generate new taskID to
-	// indetify different downloading task of remote source file. For example, if user A and user B uses
+	// identify different downloading task of remote source file. For example, if user A and user B uses
 	// the same taskURL and taskID to download file, A and B will share the same peer network to distribute files.
-	// If user A additionally adds an indentifier with taskURL, while user B still carries only taskURL, then A's
+	// If user A additionally adds an identifier with taskURL, while user B still carries only taskURL, then A's
 	// generated taskID is different from B, and the result is that two users use different peer networks.
 	//
 	Identifier string `json:"identifier,omitempty"`
@@ -71,11 +71,21 @@ type TaskCreateRequest struct {
 	//
 	Path string `json:"path,omitempty"`
 
+	// PeerID is used to uniquely identifies a peer which will be used to create a dfgetTask.
+	// The value must be the value in the response after registering a peer.
+	//
+	PeerID string `json:"peerID,omitempty"`
+
 	// The is the resource's URL which user uses dfget to download. The location of URL can be anywhere, LAN or WAN.
 	// For image distribution, this is image layer's URL in image registry.
 	// The resource url is provided by command line parameter.
 	//
 	RawURL string `json:"rawURL,omitempty"`
+
+	// taskURL is generated from rawURL. rawURL may contains some queries or parameter, dfget will filter some queries via
+	// --filter parameter of dfget. The usage of it is that different rawURL may generate the same taskID.
+	//
+	TaskURL string `json:"taskURL,omitempty"`
 }
 
 // Validate validates this task create request

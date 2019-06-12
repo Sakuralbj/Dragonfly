@@ -20,10 +20,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/dragonflyoss/Dragonfly/common/constants"
+	"github.com/dragonflyoss/Dragonfly/common/errors"
 	"github.com/dragonflyoss/Dragonfly/common/util"
 	"github.com/dragonflyoss/Dragonfly/dfget/config"
 	"github.com/dragonflyoss/Dragonfly/dfget/core/api"
-	"github.com/dragonflyoss/Dragonfly/dfget/errors"
 	"github.com/dragonflyoss/Dragonfly/dfget/types"
 	"github.com/dragonflyoss/Dragonfly/version"
 	"github.com/sirupsen/logrus"
@@ -31,13 +32,15 @@ import (
 
 // SupernodeRegister encapsulates the Register steps into a struct.
 type SupernodeRegister interface {
-	Register(peerPort int) (*RegisterResult, *errors.DFGetError)
+	Register(peerPort int) (*RegisterResult, *errors.DfError)
 }
 
 type supernodeRegister struct {
 	api api.SupernodeAPI
 	cfg *config.Config
 }
+
+var _ SupernodeRegister = &supernodeRegister{}
 
 // NewSupernodeRegister creates an instance of supernodeRegister.
 func NewSupernodeRegister(cfg *config.Config, api api.SupernodeAPI) SupernodeRegister {
@@ -48,7 +51,7 @@ func NewSupernodeRegister(cfg *config.Config, api api.SupernodeAPI) SupernodeReg
 }
 
 // Register processes the flow of register.
-func (s *supernodeRegister) Register(peerPort int) (*RegisterResult, *errors.DFGetError) {
+func (s *supernodeRegister) Register(peerPort int) (*RegisterResult, *errors.DfError) {
 	var (
 		resp       *types.RegisterResponse
 		e          error
@@ -61,17 +64,17 @@ func (s *supernodeRegister) Register(peerPort int) (*RegisterResult, *errors.DFG
 	nodes, nLen := s.cfg.Node, len(s.cfg.Node)
 	req := s.constructRegisterRequest(peerPort)
 	for i = 0; i < nLen; i++ {
-		req.SupernodeIP = nodes[i]
+		req.SupernodeIP = util.ExtractHost(nodes[i])
 		resp, e = s.api.Register(nodes[i], req)
 		logrus.Infof("do register to %s, res:%s error:%v", nodes[i], resp, e)
 		if e != nil {
 			logrus.Errorf("register to node:%s error:%v", nodes[i], e)
 			continue
 		}
-		if resp.Code == config.Success || resp.Code == config.TaskCodeNeedAuth {
+		if resp.Code == constants.Success || resp.Code == constants.CodeNeedAuth {
 			break
 		}
-		if resp.Code == config.TaskCodeWaitAuth && retryTimes < 3 {
+		if resp.Code == constants.CodeWaitAuth && retryTimes < 3 {
 			i--
 			retryTimes++
 			logrus.Infof("sleep 2.5s to wait auth(%d/3)...", retryTimes)
@@ -92,14 +95,14 @@ func (s *supernodeRegister) Register(peerPort int) (*RegisterResult, *errors.DFG
 	return result, nil
 }
 
-func (s *supernodeRegister) checkResponse(resp *types.RegisterResponse, e error) *errors.DFGetError {
+func (s *supernodeRegister) checkResponse(resp *types.RegisterResponse, e error) *errors.DfError {
 	if e != nil {
-		return errors.New(config.HTTPError, e.Error())
+		return errors.New(constants.HTTPError, e.Error())
 	}
 	if resp == nil {
-		return errors.New(config.HTTPError, "empty response, unknown error")
+		return errors.New(constants.HTTPError, "empty response, unknown error")
 	}
-	if resp.Code != config.Success {
+	if resp.Code != constants.Success {
 		return errors.New(resp.Code, resp.Msg)
 	}
 	return nil

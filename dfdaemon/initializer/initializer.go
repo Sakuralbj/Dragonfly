@@ -38,7 +38,6 @@ import (
 	"github.com/dragonflyoss/Dragonfly/dfdaemon/constant"
 	"github.com/dragonflyoss/Dragonfly/dfdaemon/global"
 	g "github.com/dragonflyoss/Dragonfly/dfdaemon/global"
-	mux "github.com/dragonflyoss/Dragonfly/dfdaemon/muxconf"
 	"github.com/dragonflyoss/Dragonfly/version"
 )
 
@@ -52,9 +51,6 @@ func Init(options *options.Options) {
 
 	// init command line param
 	initParam(options)
-
-	// http handler mapper
-	mux.InitMux()
 
 	// clean local data dir
 	go cleanLocalRepo(options)
@@ -85,13 +81,13 @@ func cleanLocalRepo(options *options.Options) {
 				return nil
 			}
 			// get the last access time
-			statT, ok := info.Sys().(*syscall.Stat_t)
+			statT, ok := util.GetSys(info)
 			if !ok {
 				log.Warnf("ignore %s: failed to get last access time", path)
 				return nil
 			}
 			// if the last access time is 1 hour ago
-			if time.Now().Unix()-Atime(statT) >= 3600 {
+			if time.Now().Unix()-util.AtimeSec(statT) >= 3600 {
 				if err := os.Remove(path); err == nil {
 					log.Infof("remove file:%s success", path)
 				} else {
@@ -239,15 +235,16 @@ func initParam(options *options.Options) {
 	// copy options to g.CommandLine so we do not break anything, but finally
 	// we should get rid of g.CommandLine totally.
 	g.CommandLine = global.CommandParam{
-		DfPath:     options.DfPath,
-		DFRepo:     options.DFRepo,
-		RateLimit:  options.RateLimit,
-		CallSystem: options.CallSystem,
-		URLFilter:  options.URLFilter,
-		Notbs:      options.Notbs,
-		HostIP:     options.HostIP,
-		Registry:   options.Registry,
-		TrustHosts: parsedTrustHosts,
+		DfPath:        options.DfPath,
+		DFRepo:        options.DFRepo,
+		RateLimit:     options.RateLimit,
+		CallSystem:    options.CallSystem,
+		URLFilter:     options.URLFilter,
+		Notbs:         options.Notbs,
+		HostIP:        options.HostIP,
+		Registry:      options.Registry,
+		TrustHosts:    parsedTrustHosts,
+		SupernodeList: options.SupernodeList,
 	}
 
 	initProperties(options)
@@ -263,24 +260,17 @@ func initProperties(ops *options.Options) {
 		}
 	}
 
-	var regs []*config.Registry
+	if ops.Registry != "" {
+		u, err := config.NewURL(ops.Registry)
+		if err != nil {
+			fmt.Printf("invalid registry url from cli parameters: %v\n", err)
+			os.Exit(constant.CodeExitConfigError)
+		}
 
-	// add local host, use the default registry schema and host
-	if reg, err := config.NewRegistry(g.RegProto, g.RegDomain,
-		"(^localhost$)|(^127.0.0.1$)|(^"+g.CommandLine.HostIP+"$)",
-		nil); err == nil {
-		regs = append(regs, reg)
-	}
-	// add trust hosts, use request's origin schema and host
-	for _, v := range g.CommandLine.TrustHosts {
-		if reg, err := config.NewRegistry("", "",
-			"^"+v+"$",
-			nil); err == nil {
-			regs = append(regs, reg)
+		props.RegistryMirror = &config.RegistryMirror{
+			Remote: u,
 		}
 	}
-	// registries in config file have lower priority
-	props.Registries = append(regs, props.Registries...)
 
 	g.Properties = props
 	str, _ := json.Marshal(props)

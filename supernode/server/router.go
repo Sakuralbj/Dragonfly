@@ -20,6 +20,19 @@ func initRoute(s *Server) *mux.Router {
 	handlers := []*HandlerSpec{
 		// system
 		{Method: http.MethodGet, Path: "/_ping", HandlerFunc: s.ping},
+
+		// v0.3
+		{Method: http.MethodPost, Path: "/peer/registry", HandlerFunc: s.registry},
+		{Method: http.MethodGet, Path: "/peer/task", HandlerFunc: s.pullPieceTask},
+		{Method: http.MethodGet, Path: "/peer/piece/suc", HandlerFunc: s.reportPiece},
+		{Method: http.MethodGet, Path: "/peer/service/down", HandlerFunc: s.reportServiceDown},
+
+		// v1
+		// peer
+		{Method: http.MethodPost, Path: "/peers", HandlerFunc: s.registerPeer},
+		{Method: http.MethodDelete, Path: "/peers/{id}", HandlerFunc: s.deRegisterPeer},
+		{Method: http.MethodGet, Path: "/peers/{id}", HandlerFunc: s.getPeer},
+		{Method: http.MethodGet, Path: "/peers", HandlerFunc: s.listPeers},
 	}
 
 	// register API
@@ -82,7 +95,7 @@ func HandleErrorResponse(w http.ResponseWriter, err error) {
 
 	// By default, daemon side returns code 500 if error happens.
 	code = http.StatusInternalServerError
-	errMsg = err.Error()
+	errMsg = NewResultInfoWithError(err).Error()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

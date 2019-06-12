@@ -34,6 +34,25 @@ func (suite *UtilSuite) TestExtractHost(c *check.C) {
 	c.Assert(host, check.Equals, "1")
 }
 
+func (suite *UtilSuite) TestGetIPAndPortFromNode(c *check.C) {
+	var cases = []struct {
+		node         string
+		defaultPort  int
+		expectedIP   string
+		expectedPort int
+	}{
+		{"127.0.0.1", 8002, "127.0.0.1", 8002},
+		{"127.0.0.1:8001", 8002, "127.0.0.1", 8001},
+		{"127.0.0.1:abcd", 8002, "127.0.0.1", 8002},
+	}
+
+	for _, v := range cases {
+		ip, port := GetIPAndPortFromNode(v.node, v.defaultPort)
+		c.Check(ip, check.Equals, v.expectedIP)
+		c.Check(port, check.Equals, v.expectedPort)
+	}
+}
+
 func (suite *UtilSuite) TestNetLimit(c *check.C) {
 	speed := NetLimit()
 	if runtime.NumCPU() < 24 {
@@ -161,5 +180,25 @@ func (suite *UtilSuite) TestIsValidIP(c *check.C) {
 	for _, v := range cases {
 		result := IsValidIP(v.ip)
 		c.Assert(result, check.Equals, v.expected)
+	}
+}
+
+func (suite *UtilSuite) TestConvertHeaders(c *check.C) {
+	cases := []struct {
+		h []string
+		e map[string]string
+	}{
+		{
+			h: []string{"a:1", "a:2", "b:", "b", "c:3"},
+			e: map[string]string{"a": "1,2", "c": "3"},
+		},
+		{
+			h: []string{},
+			e: nil,
+		},
+	}
+	for _, v := range cases {
+		headers := ConvertHeaders(v.h)
+		c.Assert(headers, check.DeepEquals, v.e)
 	}
 }

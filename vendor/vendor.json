@@ -99,6 +99,12 @@
 			"revisionTime": "2017-07-05T07:52:02Z"
 		},
 		{
+			"checksumSHA1": "RBaxTzsPJwhrGAw2SDgL2+jLJ68=",
+			"path": "github.com/golang/mock/gomock",
+			"revision": "2105010f04ec0f4d7a7335a70547be132ebd7b7b",
+			"revisionTime": "2019-03-25T18:02:04Z"
+		},
+		{
 			"checksumSHA1": "+i76HB4vEOFz+vLYsUmThS6oeQI=",
 			"path": "github.com/gorilla/mux",
 			"revision": "24fca303ac6da784b9e8269f724ddeb0b2eea5e7",
@@ -177,6 +183,12 @@
 			"revisionTime": "2016-01-10T10:55:54Z"
 		},
 		{
+			"checksumSHA1": "q+P79yv4TovIqKRdiC06nd//gqc=",
+			"path": "github.com/prashantv/gostub",
+			"revision": "24ed9cdea43de1d52ea20cab2b7a38e7ed6886b3",
+			"revisionTime": "2018-11-09T19:37:01Z"
+		},
+		{
 			"checksumSHA1": "1KVewmQICPa+IH1gYJUKDgNbKpY=",
 			"path": "github.com/russross/blackfriday",
 			"revision": "6d1ef893fcb01b4f50cb6e57ed7df3e2e627b6b2",
@@ -247,6 +259,12 @@
 			"path": "github.com/valyala/fasthttp/stackless",
 			"revision": "e5f51c11919d4f66400334047b897ef0a94c6f3c",
 			"revisionTime": "2017-12-07T12:09:41Z"
+		},
+		{
+			"checksumSHA1": "Pw49QR3vpeMuxJ3lGh4nvYrhKBU=",
+			"path": "github.com/willf/bitset",
+			"revision": "18bd95f470f9494ca07c36d877424729edc2455c",
+			"revisionTime": "2019-02-28T21:25:26Z"
 		},
 		{
 			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",

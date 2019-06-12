@@ -24,10 +24,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dragonflyoss/Dragonfly/common/constants"
+	"github.com/dragonflyoss/Dragonfly/common/errors"
 	cutil "github.com/dragonflyoss/Dragonfly/common/util"
 	"github.com/dragonflyoss/Dragonfly/dfget/config"
 	"github.com/dragonflyoss/Dragonfly/dfget/core/api"
-	"github.com/dragonflyoss/Dragonfly/dfget/errors"
 	"github.com/dragonflyoss/Dragonfly/dfget/types"
 	"github.com/dragonflyoss/Dragonfly/dfget/util"
 
@@ -60,8 +61,10 @@ type PowerClient struct {
 	// readCost records how long it took to download the piece.
 	readCost time.Duration
 
-	//downloadAPI holds an instance of DownloadAPI.
+	// downloadAPI holds an instance of DownloadAPI.
 	downloadAPI api.DownloadAPI
+
+	clientError *types.ClientErrorRequest
 }
 
 // Run starts run the task.
@@ -76,9 +79,11 @@ func (pc *PowerClient) Run() error {
 		pc.readCost.Seconds(), pc.total)
 
 	if err != nil {
-		logrus.Errorf("read piece cont error:%v from dst:%s:%d",
+		logrus.Errorf("read piece cont error:%v from dst:%s:%d, wait 20 ms",
 			err, pc.pieceTask.PeerIP, pc.pieceTask.PeerPort)
-		pc.queue.Put(pc.failPiece())
+		time.AfterFunc(time.Millisecond*20, func() {
+			pc.queue.Put(pc.failPiece())
+		})
 		return err
 	}
 
@@ -86,6 +91,11 @@ func (pc *PowerClient) Run() error {
 	pc.clientQueue.Put(piece)
 	pc.queue.Put(piece)
 	return nil
+}
+
+// ClientError return the client error if occurred
+func (pc *PowerClient) ClientError() *types.ClientErrorRequest {
+	return pc.clientError
 }
 
 func (pc *PowerClient) downloadPiece() (content *bytes.Buffer, e error) {
@@ -96,7 +106,7 @@ func (pc *PowerClient) downloadPiece() (content *bytes.Buffer, e error) {
 
 	// check that the target download peer is available
 	if dstIP != pc.node {
-		if _, e = util.CheckConnect(dstIP, peerPort, -1); e != nil {
+		if _, e = cutil.CheckConnect(dstIP, peerPort, -1); e != nil {
 			return nil, e
 		}
 	}
@@ -112,6 +122,9 @@ func (pc *PowerClient) downloadPiece() (content *bytes.Buffer, e error) {
 		return nil, errors.ErrRangeNotSatisfiable
 	}
 	if !pc.is2xxStatus(resp.StatusCode) {
+		if resp.StatusCode == http.StatusNotFound {
+			pc.initFileNotExistError()
+		}
 		return nil, errors.New(resp.StatusCode, pc.readBody(resp.Body))
 	}
 
@@ -119,13 +132,14 @@ func (pc *PowerClient) downloadPiece() (content *bytes.Buffer, e error) {
 	// use limitReader to limit the download speed
 	limitReader := cutil.NewLimitReaderWithLimiter(pc.rateLimiter, resp.Body, pieceMD5 != "")
 	content = &bytes.Buffer{}
-	if pc.total, e = content.ReadFrom(limitReader); err != nil {
-		return nil, err
+	if pc.total, e = content.ReadFrom(limitReader); e != nil {
+		return nil, e
 	}
 	pc.readCost = time.Now().Sub(startTime)
 
 	// Verify md5 code
 	if realMd5 := limitReader.Md5(); realMd5 != pieceMD5 {
+		pc.initFileMd5NotMatchError(dstIP, realMd5, pieceMD5)
 		return nil, fmt.Errorf("piece range:%s md5 not match, expected:%s real:%s",
 			pc.pieceTask.Range, pieceMD5, realMd5)
 	}
@@ -148,7 +162,7 @@ func (pc *PowerClient) createDownloadRequest() *api.DownloadRequest {
 
 func (pc *PowerClient) successPiece(content *bytes.Buffer) *Piece {
 	piece := NewPieceContent(pc.taskID, pc.node, pc.pieceTask.Cid, pc.pieceTask.Range,
-		config.ResultSemiSuc, config.TaskStatusRunning, content)
+		constants.ResultSemiSuc, constants.TaskStatusRunning, content)
 	piece.PieceSize = pc.pieceTask.PieceSize
 	piece.PieceNum = pc.pieceTask.PieceNum
 	return piece
@@ -156,7 +170,29 @@ func (pc *PowerClient) successPiece(content *bytes.Buffer) *Piece {
 
 func (pc *PowerClient) failPiece() *Piece {
 	return NewPiece(pc.taskID, pc.node, pc.pieceTask.Cid, pc.pieceTask.Range,
-		config.ResultFail, config.TaskStatusRunning)
+		constants.ResultFail, constants.TaskStatusRunning)
+}
+
+func (pc *PowerClient) initFileNotExistError() {
+	pc.clientError = &types.ClientErrorRequest{
+		ErrorType: constants.ClientErrorFileNotExist,
+		SrcCid:    pc.cfg.RV.Cid,
+		DstCid:    pc.pieceTask.Cid,
+		TaskID:    pc.taskID,
+	}
+}
+
+func (pc *PowerClient) initFileMd5NotMatchError(dstIP, realMd5, expectedMd5 string) {
+	pc.clientError = &types.ClientErrorRequest{
+		ErrorType:   constants.ClientErrorFileMd5NotMatch,
+		SrcCid:      pc.cfg.RV.Cid,
+		DstCid:      pc.pieceTask.Cid,
+		DstIP:       dstIP,
+		TaskID:      pc.taskID,
+		Range:       pc.pieceTask.Range,
+		RealMd5:     realMd5,
+		ExpectedMd5: expectedMd5,
+	}
 }
 
 func (pc *PowerClient) is2xxStatus(code int) bool {
